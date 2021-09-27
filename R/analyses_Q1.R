@@ -1,6 +1,5 @@
 library(ggplot2)
 library(parallel)
-library(readxl)
 library(writexl)
 
 kable <- knitr::kable
@@ -10,50 +9,15 @@ options(mc.cores = detectCores() - 1)
 # Set working directory
 setwd("~/Projects/Consultations/Pitteloud Nelly (Hypogonadisme)")
 
+# Data
+load("data/bl.rda")
+
 # Output directory
-outdir <- "results/analyses_dev"
+outdir <- "results/analyses_Q1_20210927"
 if (!dir.exists(outdir)) dir.create(outdir)
 
-# Import and clean data
-p <- "data-raw/BaseDesDonnées_CopieMrPasquier_Sept2.xlsx"
-S <- excel_sheets(p)
-for (s in S) {
-  d <- as.data.frame(read_xlsx(path = p, sheet = s))
-  d <- d[apply(!is.na(d), 1, any), ]
-  names(d) <- gsub("\r\n", " ", names(d))
-  for(v in names(d)[sapply(d, class) == "character"]) {
-    x <- d[[v]]
-    na <- c("-", "ND")
-    b <- is.na(x) | grepl("^[0-9]+(\\.[0-9]+)?$", x) | x %in% na
-    if (all(b)) {
-      x[x %in% na] <- NA
-      d[[v]] <- as.numeric(x)
-    }
-    if (v == "NAFLD score Interpretation") {
-      d[d[[v]] %in% "No Fibrosis", v] <- "No fibrosis"
-    }
-  }
-  if (s == "Baseline") {
-    u <- "bl"
-  } else {
-    u <- tolower(sub("^PostRYGB-", "", s))
-  }
-  assign(u, d)
-}
-rm(b, d, na, p, s, S, u, v, x)
-
-# Il y a deux variables T0 Insuline (AK et BG).  Certaines valeurs sont
-# manquantes dans l'une mais pas dans l'autre. Les valeurs sont différentes
-# aux lignes 30 (31) et 32 (33)
-bl[c("T0 Insuline...37", "T0 Insuline...59")]
-names(bl)[names(bl) == "T0 Insuline...59"] <- "T0 Insuline"
-
-#
-table(sapply(bl, class))
-lapply(bl[sapply(bl, class) == "character"], table, useNA = "ifany")
-lapply(m12[sapply(m12, class) == "character"], table, useNA = "ifany")
-
-# ----------------------------------- Q1 ------------------------------------ #
+# Recode `Group` as factor
+bl$Group <- factor(bl$Group, c("Lean control", "Non-HH obese", "HH obese"))
 
 # Q1 - Compare all parameters at baseline - Numeric variables
 V <- names(bl)[sapply(bl, class) == "numeric"]
@@ -62,8 +26,8 @@ rows <- mclapply(setNames(V, V), function(v) {
     All = bl[[v]],
     Control = bl[bl$Group %in% "Lean control", v],
     Obese = bl[grepl("obese", bl$Group), v],
-    HH = bl[bl$Group %in% "HH obese", v],
-    NonHH = bl[bl$Group %in% "Non-HH obese", v]
+    NonHH = bl[bl$Group %in% "Non-HH obese", v],
+    HH = bl[bl$Group %in% "HH obese", v]
   )
   x <- lapply(x, function(z) z[!is.na(z)])
   n <- length
@@ -81,7 +45,7 @@ rows <- mclapply(setNames(V, V), function(v) {
     if (length(x[[u]]) > 0) data.frame(grp = u, y = x[[u]]) else NULL
   }))
   lg$grp <- droplevels(factor(
-    lg$grp, c("All", "Control", "Obese", "HH", "NonHH")))
+    lg$grp, c("All", "Control", "Obese", "NonHH", "HH")))
   fig <- ggplot(lg, aes(x = grp, y = y)) +
     geom_boxplot() +
     labs(title = v, x = "", y = v)
@@ -115,8 +79,8 @@ Q1_cat <- do.call(rbind, mclapply(setNames(V, V), function(v) {
     All = bl[[v]],
     Control = bl[bl$Group %in% "Lean control", v],
     Obese = bl[grepl("obese", bl$Group), v],
-    HH = bl[bl$Group %in% "HH obese", v],
-    NonHH = bl[bl$Group %in% "Non-HH obese", v]
+    NonHH = bl[bl$Group %in% "Non-HH obese", v],
+    HH = bl[bl$Group %in% "HH obese", v]
   )
   x <- lapply(x, function(z) factor(z[!is.na(z)], lvls))
   Merge <- function(x1, x2) merge(x1, x2, by = "value", all = TRUE)
@@ -166,7 +130,7 @@ bl$AUC_Insuline <- auc$Insuline
 Y1 <- paste0("AUC_", Y)
 Q1_auc_tbls <- lapply(setNames(Y1, Y), function(y) {
   fml <- as.formula(paste(y, "~ Group"))
-  Merge <- function(x1, x2) merge(x1 ,x2, by = "Group", all = TRUE)
+  Merge <- function(x1, x2) merge(x1 ,x2, by = "Group", all = TRUE, sort = FALSE)
   n <- function(z, na.rm = FALSE) sum(!is.na(z))
   q25 <- function(z, na.rm = FALSE) unname(quantile(z, 0.25, na.rm = na.rm))
   q75 <- function(z, na.rm = FALSE) unname(quantile(z, 0.75, na.rm = na.rm))
@@ -188,19 +152,12 @@ Q1_auc_boxplots <- lapply(setNames(Y, Y), function(y) {
 })
 rm(Y)
 
-# Q1 - Area under the curve - Glucose/Insuline - Export boxplots
-pdf(file.path(outdir, "Q1_AUC_boxplots.pdf"))
-for (fig in Q1_auc_figs) print(fig)
-dev.off()
-rm(fig)
-
 # Q1 - Export tables
 write_xlsx(list(numeric = Q1_num, categorical = Q1_cat),
-           file.path(outdir, "Q1_tables.xlsx")
+           file.path(outdir, "Q1_tables.xlsx"))
 
 # Q1 - Export boxplots
-if (FALSE) { # Takes some time
-f1 <- "results/Q1_boxplots.pdf"
+f1 <- file.path(outdir, "Q1_boxplots.pdf")
 pdf(f1)
 for (fig in Q1_boxplots) print(fig)
 dev.off()
@@ -213,10 +170,8 @@ for(i in 1:length(Q1_boxplots)) {
   write(paste("BookmarkPageNumber:", i), file = f2, append = TRUE)
 }
 system(paste("pdftk", f1, "update_info", f2, "output /tmp/tmp_fig.pdf"))
-system(paste("mv /tmp/tmp_fig.pdf", f1))
-system(paste("rm /tmp/tmp_fig.pdf", f2))
+system(paste("mv /tmp/tmp_fig.pdf", f1, "&& rm", f2))
 rm(fig, f1, f2, i, s)
-}
 
 # Q1 - Area under the curve - Glucose/Insuline - Export tables and analyses
 for (y in c("Glucose", "Insuline")) {
@@ -239,10 +194,6 @@ write_xlsx(Q1_auc_tbls, file.path(outdir, "Q1_AUC.xlsx"))
 
 # Q1 - Area under the curve - Glucose/Insuline - Export boxplots
 pdf(file.path(outdir, "Q1_AUC_boxplots.pdf"))
-for (fig in Q1_auc_figs) print(fig)
+for (fig in Q1_auc_boxplots) print(fig)
 dev.off()
 rm(fig)
-
-
-
-
