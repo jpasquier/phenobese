@@ -13,7 +13,7 @@ setwd("~/Projects/Consultations/Pitteloud Nelly (Hypogonadisme)")
 load("data/bl.rda")
 
 # Output directory
-outdir <- "results/analyses_Q1_20210927"
+outdir <- "results/analyses_Q1_20210928"
 if (!dir.exists(outdir)) dir.create(outdir)
 
 # Recode `Group` as factor
@@ -197,3 +197,8 @@ pdf(file.path(outdir, "Q1_AUC_boxplots.pdf"))
 for (fig in Q1_auc_boxplots) print(fig)
 dev.off()
 rm(fig)
+
+# SessionInfo
+sink(file.path(outdir, "sessionInfo.txt"))
+print(sessionInfo(), locale = FALSE)
+sink()

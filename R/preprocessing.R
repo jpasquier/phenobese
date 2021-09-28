@@ -31,13 +31,7 @@ for (s in S) {
 }
 rm(b, d, na, p, s, S, u, v, x)
 
-# Il y a deux variables T0 Insuline (AK et BG).  Certaines valeurs sont
-# manquantes dans l'une mais pas dans l'autre. Les valeurs sont différentes
-# aux lignes 30 (31) et 32 (33)
-bl[c("T0 Insuline...37", "T0 Insuline...59")]
-names(bl)[names(bl) == "T0 Insuline...59"] <- "T0 Insuline"
-
-#
+# Check character variables
 table(sapply(bl, class))
 lapply(bl[sapply(bl, class) == "character"], table, useNA = "ifany")
 lapply(m12[sapply(m12, class) == "character"], table, useNA = "ifany")
