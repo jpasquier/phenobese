@@ -31,11 +31,6 @@ for (s in S) {
 }
 rm(b, d, na, p, s, S, u, v, x)
 
-# Check character variables
-table(sapply(bl, class))
-lapply(bl[sapply(bl, class) == "character"], table, useNA = "ifany")
-lapply(m12[sapply(m12, class) == "character"], table, useNA = "ifany")
-
 # Harmonization of variable names (the names of the baseline are used as a
 # reference)
 for (z in c("j1", "j28", "m3", "m6", "m12")) {
@@ -52,6 +47,28 @@ for (z in c("j1", "j28", "m3", "m6", "m12")) {
   assign(z, d)
 }
 rm(z, d)
+
+# Recode `Group` as factor
+bl$Group <- factor(bl$Group, c("Lean control", "Non-HH obese", "HH obese"))
+
+# Categorical variables
+V <- names(bl)[sapply(bl, class) == "character"]
+V <- V[grepl("^(ADAM|Glucose|NAFLD)", V)]
+V <- c(V, grep("\\(1=yes, 0=no\\)$", names(bl), value = TRUE))
+Z <- c("bl", "j1", "j28", "m3", "m6", "m12")
+for (v in V) {
+  lvls <- do.call(c, lapply(Z, function(z) unique(get(z)[[v]])))
+  lvls <- sort(unique(lvls))
+  if (v == "NAFLD score Interpretation") {
+    lvls <- c("No fibrosis", "Fibrosis", "Indeterminate")
+  }
+  for (z in Z) {
+    d <- get(z)
+    if (v %in% names(d)) d[[v]] <- factor(d[[v]], lvls)
+    assign(z, d)
+  }
+}
+rm(V, Z, d, lvls, v, z)
 
 # Save data
 if (!dir.exists("data")) dir.create("data")

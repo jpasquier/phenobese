@@ -7,17 +7,14 @@ kable <- knitr::kable
 options(mc.cores = detectCores() - 1)
 
 # Set working directory
-setwd("~/Projects/Consultations/Pitteloud Nelly (Hypogonadisme)")
+setwd("~/Projects/Consultations/Pitteloud Nelly (Phenobese)")
 
 # Data
 load("data/bl.rda")
 
 # Output directory
-outdir <- "results/analyses_Q1_20210928"
+outdir <- paste0("results/analyses_Q1_", format(Sys.Date(), "%Y%m%d"))
 if (!dir.exists(outdir)) dir.create(outdir)
-
-# Recode `Group` as factor
-bl$Group <- factor(bl$Group, c("Lean control", "Non-HH obese", "HH obese"))
 
 # Q1 - Compare all parameters at baseline - Numeric variables
 V <- names(bl)[sapply(bl, class) == "numeric"]
@@ -71,10 +68,9 @@ Q1_boxplots <- lapply(rows, function(r) attr(r, "fig"))
 rm(V, rows)
 
 # Q1 - Compare all parameters at baseline - Categorical variables
-V <- names(bl)[sapply(bl, class) == "character"]
-V <- V[grepl("^(ADAM|Glucose|NAFLD)", V)]
+V <- names(bl)[sapply(bl, class) == "factor"]
+V <- V[V != "Group"]
 Q1_cat <- do.call(rbind, mclapply(setNames(V, V), function(v) {
-  lvls <- unique(na.omit(bl[[v]]))
   x <- list(
     All = bl[[v]],
     Control = bl[bl$Group %in% "Lean control", v],
@@ -82,7 +78,6 @@ Q1_cat <- do.call(rbind, mclapply(setNames(V, V), function(v) {
     NonHH = bl[bl$Group %in% "Non-HH obese", v],
     HH = bl[bl$Group %in% "HH obese", v]
   )
-  x <- lapply(x, function(z) factor(z[!is.na(z)], lvls))
   Merge <- function(x1, x2) merge(x1, x2, by = "value", all = TRUE)
   r <- Reduce(Merge, lapply(names(x), function(u) {
     r <- table(x[[u]])
@@ -90,7 +85,6 @@ Q1_cat <- do.call(rbind, mclapply(setNames(V, V), function(v) {
     colnames(r) <- paste(u, colnames(r), sep = ".")
     cbind(data.frame(value = rownames(r)), r)
   }))
-  r <- r[match(lvls, r$value), ]
   tbl1 <- rbind(data.frame(g = 1, v = x$Control),
                 data.frame(g = 2, v = x$Obese))
   tbl1 <- table(tbl1$g, tbl1$v)
@@ -130,7 +124,8 @@ bl$AUC_Insuline <- auc$Insuline
 Y1 <- paste0("AUC_", Y)
 Q1_auc_tbls <- lapply(setNames(Y1, Y), function(y) {
   fml <- as.formula(paste(y, "~ Group"))
-  Merge <- function(x1, x2) merge(x1 ,x2, by = "Group", all = TRUE, sort = FALSE)
+  Merge <- function(x1, x2) merge(x1 ,x2, by = "Group", all = TRUE,
+                                  sort = FALSE)
   n <- function(z, na.rm = FALSE) sum(!is.na(z))
   q25 <- function(z, na.rm = FALSE) unname(quantile(z, 0.25, na.rm = na.rm))
   q75 <- function(z, na.rm = FALSE) unname(quantile(z, 0.75, na.rm = na.rm))
@@ -184,13 +179,21 @@ for (y in c("Glucose", "Insuline")) {
   fml <- as.formula(paste0("AUC_", y, " ~ Group"))
   fit <- do.call("lm", list(formula = fml, data = quote(bl)))
   print(summary(fit))
+  cat(paste0("\nLinear regression (Non-HH as reference)\n",
+             "---------------------------------------\n"))
+  tmp <- bl
+  tmp$Group <- relevel(tmp$Group, ref = "Non-HH obese")
+  fml <- as.formula(paste0("AUC_", y, " ~ Group"))
+  fit <- do.call("lm", list(formula = fml, data = quote(tmp)))
+  print(summary(fit))
   cat("\nANOVA Table\n-----------\n")
   print(anova(fit))
   sink(type = "message")
   sink()
 }
-rm(y, z, fml, fit)
+rm(y, z, fml, fit, tmp)
 write_xlsx(Q1_auc_tbls, file.path(outdir, "Q1_AUC.xlsx"))
+bl$`Arterial hypertension (1=yes, 0=no)`
 
 # Q1 - Area under the curve - Glucose/Insuline - Export boxplots
 pdf(file.path(outdir, "Q1_AUC_boxplots.pdf"))

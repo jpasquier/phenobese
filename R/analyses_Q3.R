@@ -1,3 +1,4 @@
+library(car)
 library(ggplot2)
 library(gridExtra)
 library(parallel)
@@ -6,13 +7,13 @@ library(writexl)
 options(mc.cores = detectCores() - 1)
 
 # Set working directory
-setwd("~/Projects/Consultations/Pitteloud Nelly (Hypogonadisme)")
+setwd("~/Projects/Consultations/Pitteloud Nelly (Phenobese)")
 
 # Data
 load("data/bl.rda")
 
 # Output directory
-outdir <- "results/analyses_Q3_20210928"
+outdir <- paste0("results/analyses_Q3_", format(Sys.Date(), "%Y%m%d"))
 if (!dir.exists(outdir)) dir.create(outdir)
 
 # Rename variables
@@ -139,10 +140,18 @@ multi_reg <- mclapply(setNames(Y, Y), function(y) {
               confint(fit0), `p-value` = coef(summary(fit0))[, 4])[-1, ]
       }))
       names(tbl0)[-1] <- paste(names(tbl0)[-1], "(univar)")
+      vif <- vif(fit)
+      vif <- data.frame(variable = names(vif), vif = vif)
       tbl$dummy_row_number <- 1:nrow(tbl)
       tbl <- merge(tbl0, tbl, by = "variable", all = TRUE)
+      tbl <- merge(tbl, vif, by = "variable", all = TRUE)
       tbl <- tbl[order(tbl$dummy_row_number), ]
       tbl$dummy_row_number <- NULL
+      names(tbl)[names(tbl) == "variable"] <- "independent_variable"
+      tbl <- cbind(dependent_variable = c(y, rep(NA, nrow(tbl) - 1)),
+                   group = c(c("All", "Obese")[k], rep(NA, nrow(tbl) - 1)),
+                   nobs = c(nrow(fit$model), rep(NA, nrow(tbl) - 1)),
+                   tbl)
       list(fit = fit, tbl = tbl, n = nrow(fit$model))
     })
   })

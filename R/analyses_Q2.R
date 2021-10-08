@@ -6,23 +6,34 @@ library(writexl)
 options(mc.cores = detectCores() - 1)
 
 # Set working directory
-setwd("~/Projects/Consultations/Pitteloud Nelly (Hypogonadisme)")
+setwd("~/Projects/Consultations/Pitteloud Nelly (Phenobese)")
 
 # Data
 load("data/bl.rda")
 
 # Output directory
-outdir <- "results/analyses_Q2_20210928"
-if (!dir.exists(outdir)) dir.create(outdir)
+outdir <- paste0("results/analyses_Q2_", format(Sys.Date(), "%Y%m%d"))
 
 # Selection of obese patients
 ob <- bl[grepl("obese", bl$Group), ]
 
 # Define the variable "Poor metabolic profile"
-ob$PoorMetabolicProfile <- 
+ncrit <- 2
+ob$PoorMetabolicProfile <-
   ob$`Glucose tolerance OGTT` %in% c("DT2", "IGT") &
-  ob$`HOMA-IR` > 4 &
-  ob$`hs-CRP` < 5
+  ob$`HOMA-IR` > 4
+crit <- paste("Poor Metabolic Profile IF Glucose tolerance OGTT in {DT2, IGT}",
+              "& HOMA-IR > 4")
+if (ncrit == 2) {
+  outdir <- file.path(outdir, "Two_criteria")
+} else {
+  outdir <- file.path(outdir, "Three_criteria")
+  ob$PoorMetabolicProfile <- ob$PoorMetabolicProfile & ob$`hs-CRP` > 5
+  crit <- paste(crit, "& hs-CRP > 5")
+}
+if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
+cat(crit, file = file.path(outdir, "criteria.txt"))
+rm(crit, ncrit)
 
 # Predictors
 ob$Testosterone <- ob$`Testosterone (nmol/l)`
