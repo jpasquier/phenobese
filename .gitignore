@@ -1,8 +1,4 @@
-data/*
-data-raw/*
-documents/*
-results/*
-sessions/*
-TODO.txt
-heures_662.csv
-!*/.keep
+/*
+/*/
+!.gitignore
+!/R/

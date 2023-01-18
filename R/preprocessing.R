@@ -51,6 +51,10 @@ rm(z, d)
 # Recode `Group` as factor
 bl$Group <- factor(bl$Group, c("Lean control", "Non-HH obese", "HH obese"))
 
+# Add missing values
+bl[bl$`Subject ID` == "S003366", "FGF21 AM"] <- 1091.1
+bl[bl$`Subject ID` == "S004439", "FGF21 AM"] <- 865.2
+
 # Categorical variables
 V <- names(bl)[sapply(bl, class) == "character"]
 V <- V[grepl("^(ADAM|Glucose|NAFLD)", V)]
