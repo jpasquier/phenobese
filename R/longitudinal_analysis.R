@@ -22,7 +22,8 @@ y_vars <- c("BMI (kg/m2)", "HOMA-IR", "hs-CRP", "Fat percent",
             "Intra-visceral fat mass", "FGF21 AM", "NEFA AM",
             "isoleucine/alloisoleucine", "Leptin AM (ng/ml)",
             "b-hydroxybutyrate", "Adiponectine", "Ceramides - PURE",
-            "leucine", "valine")
+            "leucine", "valine", "Testosterone (nmol/l)", "SHBG",
+            "Testosterone libre (pmol/l)")
 y_vars <- setNames(
   y_vars, tolower(gsub(" - |-| |/", "_", sub(" \\(.+\\)", "", y_vars))))
 
@@ -76,6 +77,11 @@ R <- mclapply(y_vars, function(y) {
     theme_bw()
   list(fit = fit, tbl = tbl, figs = figs)
 })
+
+# Any singular fit?
+if (any(sapply(R, function(x) isSingular(x$fit)))) {
+  warning("Singular fit(s)")
+}
 
 # Export results
 mclapply(R, function(r) r$tbl) %>%
